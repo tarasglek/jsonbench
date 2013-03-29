@@ -9,7 +9,13 @@ node:
 	nodejs read.js $(JSON) 
 
 jython: jython-standalone-2.7-b1.jar jyson-1.0.2.jar
-	java  -jar $< -Dpython.path=jyson-1.0.2.jar json.py $(JSON)
+	java  -jar $< -Dpython.path=jyson-1.0.2.jar loadjson.py com.xhaus.jyson.JysonCodec <  $(JSON)
+
+python:
+	python loadjson.py json < $(JSON)
+
+python_simplejson:
+	python loadjson.py simplejson < $(JSON)
 
 spidermonkey:
 	~/obj/js -f spidermonkey.js < ~/work/data-telemetry/export.log
