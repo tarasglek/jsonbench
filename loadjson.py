@@ -1,14 +1,3 @@
-"""
-Usage ./import.py telemetry_dump outdir/
-
-Will produce outdir/histograms.txt, outdir/filter.json, outdir/<HISOTGRAM_NAME>.json
-
-TODO: 
-
-* switch from json to a binary encoding
-* histograms.json should be replaced/enhanced with db schema reported by client
-* include stddev, percentiles, etc where possible
-"""
 #!/usr/bin/python
 import sys
 import importlib
