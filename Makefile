@@ -4,18 +4,21 @@ space +=
 comma :=,
 JARS_CP=$(subst $(space),:,$(JARS))
 JSON=../data-telemetry/export.log
+PYTHON_JSON=json
+PYTHON_CMD=python
+JYTHON_JSON=com.xhaus.jyson.JysonCodec
 
 node:
 	nodejs read.js $(JSON) 
 
 jython: jython-standalone-2.7-b1.jar jyson-1.0.2.jar
-	java  -jar $< -Dpython.path=jyson-1.0.2.jar loadjson.py com.xhaus.jyson.JysonCodec <  $(JSON)
-
+	$(MAKE) python PYTHON_CMD="java  -jar $< -Dpython.path=jyson-1.0.2.jar" PYTHON_JSON=$(JYTHON_JSON)
+ 
 python:
-	python loadjson.py json < $(JSON)
+	$(PYTHON_CMD) loadjson.py $(PYTHON_JSON) < $(JSON)
 
 python_simplejson:
-	python loadjson.py simplejson < $(JSON)
+	$(MAKE) python PYTHON_JSON=simplejson
 
 spidermonkey:
 	~/obj/js -f spidermonkey.js < ~/work/data-telemetry/export.log
