@@ -21,7 +21,7 @@ while True:
     l = len(oline)
     if l == 0:
         break
-    bytes_read += len(oline)
+    bytes_read += l
     json.loads(oline)
 
 if jython:
