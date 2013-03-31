@@ -24,7 +24,8 @@ spidermonkey:
 	~/obj/js -f spidermonkey.js < ~/work/data-telemetry/export.log
 
 cxx:
-	c++ -O3 json.cpp -o json  && ./json $(JSON)
+	c++ -Wall -O3 json.cpp -o json
+	 ./json < $(JSON)
 
 java: $(JARS)
 	javac -cp $(JARS_CP)  JSON.java && java -cp $(JARS_CP):. JSON < $(JSON)
