@@ -1,3 +1,8 @@
+/*
+A line-by-line multiplexer. This takes input on stdin, and feeds it to stdin of a user-requested number of processes
+Unfortunately, it's memory-bound atm due to number of copies imposed by pipe
+
+ */
 #include <vector>
 #include <unistd.h>
 #include <fcntl.h>
