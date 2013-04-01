@@ -1,5 +1,5 @@
 pipejson: pipejson.cpp
-	g++ -O3 -Wall -o $@ $+
+	g++ -O3 -Wall -g -o $@ $+
 
 clean:
 	rm -f pipejson
