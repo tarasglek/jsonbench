@@ -178,6 +178,12 @@ int main(int argc, char **argv) {
     int flags = fcntl(outfd, F_GETFL, 0);
     if (fcntl(outfd, F_SETFL, flags | O_NONBLOCK) == -1) 
       perror("fcntl");
+    // max buffer size on linux
+    if (fcntl(outfd, F_GETPIPE_SZ, 1048576) == -1) 
+      perror("fcntl");
+    // max size if one bumps /proc/sys/fs/pipe-max-size
+    fcntl(outfd, F_GETPIPE_SZ, 16777216);
+
     FDBuffer child(outfd, pid);
     workers.push_back(child);
   }
