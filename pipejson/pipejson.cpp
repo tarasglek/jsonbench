@@ -198,11 +198,12 @@ int main(int argc, char **argv) {
       pipe_iterator++;
       if (pipe_iterator == workers.end()) {
         pipe_iterator = workers.begin();
+        // require one full everything-is-blocked iteration before giving up and trying to select
         if (pipes_full) {
+          select_wait(workers);
         }
         pipes_full = true;
       }
-      select_wait(workers);
     } else if (pipe_status == FDBuffer::READY) {
       pipes_full = false;
       continue;
