@@ -10,8 +10,10 @@ public class JSON {
     BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
     JsonFactory factory = new JsonFactory();
     JsonParser parser = null;
+    long bytesRead = 0;
     String s;
     while ((s = in.readLine()) != null && s.length() != 0) {
+      bytesRead += s.length();
       parser = factory.createJsonParser(s);
       while(parser.nextToken() != null) {
          // do nothing
@@ -19,6 +21,8 @@ public class JSON {
     }
     long end = new Date().getTime();
 
-    System.out.println("Processing took " + (end - start) + "ms");
+    long duration = end - start;
+    double mbPerSec = ((double)bytesRead / 1024.0 / 1024.0) / (duration / 1000.0);
+    System.out.println(String.format("Processing %d bytes took %d ms (%.2f MB/s)", bytesRead, duration, mbPerSec));
   }
 }
