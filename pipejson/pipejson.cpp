@@ -13,12 +13,14 @@ Unfortunately, it's memory-bound atm due to number of copies imposed by pipe
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include "unix_util.h"
 
 using namespace std;
 // todo look at rust flatpipes
 
 static long wrotesum = 0;
 static long readsum = 0;
+static size_t shmmem_size = 0;
 
 struct FDBuffer {
   enum Status {
@@ -34,8 +36,9 @@ struct FDBuffer {
   char *outbuf;
   size_t fwdsofar;
   pid_t pid;
-  FDBuffer(int fd = -1, pid_t pid = 0):
-    fd(fd), line_buffer(NULL), line_buffer_size(0), fwd_size(0), outbuf(NULL), fwdsofar(0), pid(pid)
+  void *schmem;
+  FDBuffer(int fd = -1, pid_t pid = 0, void *schmem = NULL):
+    fd(fd), line_buffer(NULL), line_buffer_size(0), fwd_size(0), outbuf(NULL), fwdsofar(0), pid(pid), schmem(schmem)
   {
   }
   
@@ -150,7 +153,9 @@ int main(int argc, char **argv) {
       perror("pipe");
       _exit(1);
     }
-
+    //100mb shmem
+    void *shmmem = establish_shm_segment(25*1024, &shmmem_size);
+    printf("%p %lu\n", shmmem, shmmem_size);
     int pid = fork();
     if (pid == -1) {
       perror("fork");
@@ -179,12 +184,12 @@ int main(int argc, char **argv) {
     if (fcntl(outfd, F_SETFL, flags | O_NONBLOCK) == -1) 
       perror("fcntl");
     // max buffer size on linux
-    if (fcntl(outfd, F_GETPIPE_SZ, 1048576) == -1) 
+    if (fcntl(outfd, F_SETPIPE_SZ, 1048576) == -1) 
       perror("fcntl");
     // max size if one bumps /proc/sys/fs/pipe-max-size
-    fcntl(outfd, F_GETPIPE_SZ, 16777216);
+    fcntl(outfd, F_SETPIPE_SZ, 16777216);
 
-    FDBuffer child(outfd, pid);
+    FDBuffer child(outfd, pid, shmmem);
     workers.push_back(child);
   }
 
