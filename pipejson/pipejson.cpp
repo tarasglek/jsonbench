@@ -203,14 +203,14 @@ int main(int argc, char **argv) {
 
     if (pid == 0) {    /* Child reads from pipe */
       close(pipes[1]);          /* Close unused write end */
-      //nice(1);
+      nice(1);
 #define STDIN 0
       if (dup2(pipes[0], STDIN) == -1) {
         perror("dup2");
         _exit(1);
       }
       close(pipes[0]);
-      prctl (PR_SET_NAME, "json", 0, 0, 0);
+      //prctl (PR_SET_NAME, "json", 0, 0, 0);
       //setaffinity(worker);
       
       DataMarker incoming_d;
@@ -229,7 +229,16 @@ int main(int argc, char **argv) {
         //buf[incoming_d.length-1] = 0;
         //        fprintf(stderr, "end char=%d\n", buf[incoming_d.length-1]);
         //write(1, buf, incoming_d.length-1);
+        //user CPU time:16877;system CPU time:3512 ru_minflt:3632733 ru_majflt:0
+        //user CPU time:16753;system CPU time:3652 ru_minflt:3632733 ru_majflt:0
+        //user CPU time:16753;system CPU time:3600 ru_minflt:3632733 ru_majflt:0
+
+        char* ptr =static_cast<char*>(shmem)+(incoming_d.begin/4096 * 4096);
+        /*  if (-1 == madvise(ptr, (incoming_d.length/4096+1)*4096, MADV_WILLNEED)) {
+          perror("madvise");
+          }*/
         json.parse(buf, incoming_d.length-1);
+        //r+=strlen(buf);
       }
       }
       //execv(argv[2], argv+2);
@@ -248,9 +257,11 @@ int main(int argc, char **argv) {
     workers.push_back(child);
   }
   //setaffinity(0);
-  //nice(10);
+  //nice(0);
   pipe_iterator = workers.begin();
   bool pipes_full = false;
+  if (-1 == posix_fadvise (0,0,0, POSIX_FADV_NOREUSE | POSIX_FADV_SEQUENTIAL| POSIX_FADV_WILLNEED))
+    err(1, "fadvise");
   while(true) {
     const int pipe_status = pipe_iterator->fwd(stdin);
     if (pipe_status == FDBuffer::INPUT_EOF)
@@ -262,6 +273,7 @@ int main(int argc, char **argv) {
         // require one full everything-is-blocked iteration before giving up and trying to select
         if (pipes_full) {
           select_wait(workers);
+          //fprintf(stderr, "waiting\n");
         }
         pipes_full = true;
       }
