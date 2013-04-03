@@ -9,7 +9,7 @@ PYTHON_CMD=python
 JYTHON_JSON=com.xhaus.jyson.JysonCodec
 
 node:
-	nodejs read.js $(JSON) 
+	nodejs node.js $(JSON) 
 
 jython: jython-standalone-2.7-b1.jar jyson-1.0.2.jar
 	$(MAKE) python PYTHON_CMD="java  -jar $< -Dpython.path=jyson-1.0.2.jar" PYTHON_JSON=$(JYTHON_JSON)
@@ -30,14 +30,14 @@ cxx:
 	 ./json < $(JSON)
 
 cxx1: json
-	./json < $(JSON)
+	 $(PIPE) | ./json
 
 cxx2: json
-	./json < $(JSON)
+	 $(PIPE) | ./json
 cxx3: json
-	./json < $(JSON)
+	 $(PIPE)| ./json
 cxx4: json
-	./json < $(JSON)
+	 $(PIPE)| ./json
 
 cxxp: cxx1 cxx2 cxx3 cxx4
 

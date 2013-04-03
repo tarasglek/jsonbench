@@ -7,7 +7,7 @@
 
 struct JSONBench {
   struct timeval start, stop;
-  rapidjson::Document document;	// Default template parameter uses UTF8 and MemoryPoolAllocator.
+rapidjson::GenericDocument<rapidjson::UTF8<>, rapidjson::CrtAllocator> document;	// Default template parameter uses UTF8 and MemoryPoolAllocator.
   size_t bytes;
   JSONBench():bytes(0) {
     gettimeofday(&start, NULL);
