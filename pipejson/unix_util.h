@@ -5,6 +5,7 @@
 #include <fcntl.h>           /* For O_* constants */
 #include <stdio.h>
 #include <unistd.h>
+#include <sched.h>
 
 void err(int code, char const *str){
   perror(str);
@@ -33,6 +34,24 @@ establish_shm_segment(int nr_pages, size_t *outSize)
   close(fd);
   *outSize = size;
   return addr;
+}
+void
+setaffinity(int cpunum)
+{
+  cpu_set_t *mask;
+  size_t size;
+  int i;
+  int nrcpus = 160;
+  pid_t pid;
+  mask = CPU_ALLOC(nrcpus);
+  size = CPU_ALLOC_SIZE(nrcpus);
+  CPU_ZERO_S(size, mask);
+  CPU_SET_S(cpunum, size, mask);
+  pid = getpid();
+  i = sched_setaffinity(pid, size, mask);
+  if (i == -1)
+    err(1, "sched_setaffinity");
+  CPU_FREE(mask);
 }
 
 #endif

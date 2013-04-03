@@ -14,13 +14,36 @@ Unfortunately, it's memory-bound atm due to number of copies imposed by pipe
 #include <sys/wait.h>
 #include <errno.h>
 #include "unix_util.h"
+#include "../json.h"
+#include <sys/prctl.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 using namespace std;
 // todo look at rust flatpipes
 
 static long wrotesum = 0;
 static long readsum = 0;
-static size_t shmmem_size = 0;
+static size_t shmem_size = 0;
+static size_t pipe_buffer_size = 0;
+
+long timeval2ms(timeval &t) {
+  return t.tv_sec * 1000 + t.tv_usec/1000;
+}
+
+void print_rusage() {
+  rusage usage;
+  if (0 != getrusage(RUSAGE_SELF, &usage)){
+    err(1, "getrusage");
+  }
+  fprintf(stderr, "user CPU time:%lu;system CPU time:%lu ru_minflt:%ld ru_majflt:%ld\n",
+          timeval2ms(usage.ru_utime),  timeval2ms(usage.ru_stime), usage.ru_minflt, usage.ru_majflt);
+}
+struct DataMarker {
+  DataMarker(size_t begin=0, size_t length=0):begin(begin), length(length) {}
+  unsigned int begin;
+  unsigned int length;
+};
 
 struct FDBuffer {
   enum Status {
@@ -30,54 +53,40 @@ struct FDBuffer {
   };
 
   int fd;
-  char *line_buffer;
-  size_t line_buffer_size;
-  ssize_t fwd_size;
-  char *outbuf;
-  size_t fwdsofar;
   pid_t pid;
-  void *schmem;
-  FDBuffer(int fd = -1, pid_t pid = 0, void *schmem = NULL):
-    fd(fd), line_buffer(NULL), line_buffer_size(0), fwd_size(0), outbuf(NULL), fwdsofar(0), pid(pid), schmem(schmem)
+  void *shmem;
+  size_t shmem_offset;
+  // start_busy contains the start of window(in shmem) that's currently in queue to the child process
+  vector<DataMarker> window;
+  DataMarker *todo;
+  FDBuffer(int fd = -1, pid_t pid = 0, void *shmem = NULL):
+    fd(fd), pid(pid), shmem(shmem), shmem_offset(0), todo(NULL)
   {
   }
   
-  void malloc(size_t size) {
-    line_buffer = (char*)::malloc(size);
-    line_buffer_size = size;
-  }
-
   Status write_outstanding() {
-    if (!outbuf)
+    if (!todo)
       return READY;
-    const int todo_bytes = fwd_size - fwdsofar;
-    int wrote = write(fd, outbuf, todo_bytes);
-
-    if (wrote != -1) {
-      wrotesum += wrote;
-      fwdsofar += wrote;
+    int wrote = write(fd, todo, sizeof(*todo));
+    if (wrote != sizeof(*todo)) {
+      if (wrote != -1)
+        err(1, "partial writes should never occur");
+      if (errno == EAGAIN)
+        return BLOCKED;
+      else
+        err(1, "unknown write() error");
     }
-    if (wrote == todo_bytes) {
-      outbuf = NULL;
-      fwdsofar = fwd_size = 0;
-      return READY;
-    } 
-    if (wrote == -1) {
-      if (errno == EAGAIN) {
-        //can't write anything else to socket
-      } else {// IO ERROR
-        perror("write");
-        _exit(1);
-      }
-
-    } else if (wrote < todo_bytes) {
-      outbuf += wrote;
-    } else if (wrote > todo_bytes) {
-      fprintf(stderr, "Impossible write()ed more than asked for\n");
-      _exit(1);
+    todo = NULL;
+    if (window.size() > pipe_buffer_size/sizeof(DataMarker)) {
+      //window.erase(window.begin());
+      //size_t begin = 
+      // fprintf(stderr, "maintaining Window.count=%lu of %lubytes\n", 
+      //      window.size(), window.back().begin + window.back().length - window.front().begin);
     }
-    return BLOCKED;
+
+    return READY;
   }
+
   // move data from line_buffer into fd
   // return -1 when EOF
   // return 0 when fd wont accept any more bytes
@@ -85,22 +94,43 @@ struct FDBuffer {
   Status fwd(FILE *input) {
     if (write_outstanding() == BLOCKED)
       return BLOCKED;
-    
-    fwd_size = getline(&line_buffer, &line_buffer_size, input);
+
+    size_t line_buffer_size = shmem_size - shmem_offset;
+    //fprintf(stderr, "line_buffer_size=%lu\n", line_buffer_size);
+
+    char *dest = static_cast<char*>(shmem) + shmem_offset;
+    // DANGER: getline expects to be able to reallocate dest if line wont fit..it better fit
+    ssize_t fwd_size = getline(&dest, &line_buffer_size, input);
+
     // input EOF
     if (fwd_size == -1)
       return INPUT_EOF;
 
+    // make sure what we send is \0-terminated
+    /*if (dest[fwd_size-1] == '\n')
+      dest[fwd_size-1] = 0;
+      else*/
+    // include null in transmitted buffer
+    fwd_size++;
+
+    DataMarker d(shmem_offset, fwd_size);
+    //fprintf(stderr, "shmem_offset:%lu fwd_size:%lu\n", shmem_offset, fwd_size);
+    //WARNING nothing actually ensures that window + getline don't overlap(other than ample room in shared mem)
+    window.resize(1);
+    window[0] = d;//.push_back(d);
+    todo = &window.back();
+
+    shmem_offset += fwd_size;
+    if (shmem_offset + 1024*1024 >= shmem_size)
+      shmem_offset = 0;
+
     readsum += fwd_size;
-    outbuf = line_buffer;
-    fwdsofar = 0;
-    return write_outstanding();
+    return READY;
   }
 
   // not using a destructor cos copy constructors make a mess of fd-management
   void close() {
     ::close(fd);
-    free(line_buffer);
     fd = -1;
   }
 };
@@ -153,9 +183,17 @@ int main(int argc, char **argv) {
       perror("pipe");
       _exit(1);
     }
-    //100mb shmem
-    void *shmmem = establish_shm_segment(25*1024, &shmmem_size);
-    printf("%p %lu\n", shmmem, shmmem_size);
+
+    int outfd = pipes[1];
+    // set the buffer to include enough room for 256 markers
+    if (fcntl(outfd, F_SETPIPE_SZ, 4096) == -1) 
+      perror("fcntl");
+
+    pipe_buffer_size = fcntl(outfd, F_GETPIPE_SZ, 0);
+    fprintf(stderr, "Pipe size = %lu\n", pipe_buffer_size);
+
+    void *shmem = establish_shm_segment(pipe_buffer_size/sizeof(DataMarker) * 128/4, &shmem_size);
+    fprintf(stderr,"%p %lu\n", shmem, shmem_size);
     int pid = fork();
     if (pid == -1) {
       perror("fork");
@@ -165,34 +203,52 @@ int main(int argc, char **argv) {
 
     if (pid == 0) {    /* Child reads from pipe */
       close(pipes[1]);          /* Close unused write end */
+      //nice(1);
 #define STDIN 0
       if (dup2(pipes[0], STDIN) == -1) {
         perror("dup2");
         _exit(1);
       }
       close(pipes[0]);
-      execv(argv[2], argv+2);
-      fprintf(stderr, "Failed to launch subprocess: %s\n", argv[2]);
+      prctl (PR_SET_NAME, "json", 0, 0, 0);
+      //setaffinity(worker);
+      
+      DataMarker incoming_d;
+      int r;
+      {
+      JSONBench json;
+      while((r = read(STDIN, &incoming_d, sizeof(incoming_d)))) {
+        if (r == -1)
+          break;
+        else if (r != sizeof(incoming_d)) {
+          fprintf(stderr, "Receiver undeflow %d/%lu\n", r, sizeof(incoming_d));
+          err(1, "read() give up");
+        }
+        //fprintf(stderr, "start:%lu, length:%lu\n", incoming_d.begin, incoming_d.length);
+        char *buf = static_cast<char*>(shmem) + incoming_d.begin;
+        //buf[incoming_d.length-1] = 0;
+        //        fprintf(stderr, "end char=%d\n", buf[incoming_d.length-1]);
+        //write(1, buf, incoming_d.length-1);
+        json.parse(buf, incoming_d.length-1);
+      }
+      }
+      //execv(argv[2], argv+2);
+      //fprintf(stderr, "Failed to launch subprocess: %s\n", argv[2]);
+      print_rusage();
       _exit(1);
       // process is replaced with child
     }
     // parent
     close(pipes[0]);          /* Close unused read end */    
 
-    int outfd = pipes[1];
     int flags = fcntl(outfd, F_GETFL, 0);
     if (fcntl(outfd, F_SETFL, flags | O_NONBLOCK) == -1) 
       perror("fcntl");
-    // max buffer size on linux
-    if (fcntl(outfd, F_SETPIPE_SZ, 1048576) == -1) 
-      perror("fcntl");
-    // max size if one bumps /proc/sys/fs/pipe-max-size
-    fcntl(outfd, F_SETPIPE_SZ, 16777216);
-
-    FDBuffer child(outfd, pid, shmmem);
+    FDBuffer child(outfd, pid, shmem);
     workers.push_back(child);
   }
-
+  //setaffinity(0);
+  //nice(10);
   pipe_iterator = workers.begin();
   bool pipes_full = false;
   while(true) {
@@ -228,4 +284,5 @@ int main(int argc, char **argv) {
     }
   }
   fprintf(stderr, "read:%ld wrote:%ld diff:%d\n", readsum, wrotesum, (int)(readsum - wrotesum));
+  print_rusage();
 }
