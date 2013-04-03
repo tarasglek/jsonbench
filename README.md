@@ -1,4 +1,5 @@
-Purpose: to compare throughput of various json implementations and to come up with the fastest way to process json log files.
+***Purpose
+ To compare throughput of various json implementations and to come up with the fastest way to process json log files.
 
 See Makefile for details.
 
@@ -14,3 +15,10 @@ lz4 appears to be the fastest compression algo. On my quadcore i5-3330S, I can d
 `
 time make -j cxxp PIPE=lz4demo -d ~/work/data-telemetry/20130305-20130306.json.lz4 stdout
 `
+
+***Generating Sample Data
+
+1. Enable telemetry in your browser.
+2. Close browser
+3. Go to your profile dir/saved-telemetry-pings copy those files somewhere safe
+4. Write a program to cat those files into a few gb of input data
