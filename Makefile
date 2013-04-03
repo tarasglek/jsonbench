@@ -23,9 +23,23 @@ python_simplejson:
 spidermonkey:
 	~/obj/js -f spidermonkey.js < ~/work/data-telemetry/export.log
 
-cxx:
+json: json.cpp json.h
 	c++ -Wall -O3 json.cpp -o json
+
+cxx:
 	 ./json < $(JSON)
+
+cxx1: json
+	./json < $(JSON)
+
+cxx2: json
+	./json < $(JSON)
+cxx3: json
+	./json < $(JSON)
+cxx4: json
+	./json < $(JSON)
+
+cxxp: cxx1 cxx2 cxx3 cxx4
 
 java: $(JARS)
 	javac -cp $(JARS_CP)  JSON.java && java -cp $(JARS_CP):. JSON < $(JSON)
