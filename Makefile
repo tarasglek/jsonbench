@@ -21,10 +21,13 @@ python_simplejson:
 	$(MAKE) python PYTHON_JSON=simplejson
 
 spidermonkey:
-	~/obj/js -f spidermonkey.js < ~/work/data-telemetry/export.log
+	~/obj/js -f spidermonkey.js < $(JSON)
 
 json: json.cpp json.h
 	c++ -Wall -O3 json.cpp -o json
+
+rust:
+	rustc -O rust.rs && ./rust  < $(JSON)
 
 cxx:
 	 ./json < $(JSON)
