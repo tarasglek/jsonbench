@@ -7,7 +7,11 @@ JSON=../data-telemetry/export.log
 PYTHON_JSON=json
 PYTHON_CMD=python
 JYTHON_JSON=com.xhaus.jyson.JysonCodec
+LIMIT=cat
+CPUS=$(foreach proc,$(shell grep processor /proc/cpuinfo|$(LIMIT)|sed 's/[: \t]/_/g'),$(proc).cxx)
 
+echo:
+	echo $(CPUS)
 node:
 	nodejs node.js $(JSON) 
 
@@ -29,20 +33,13 @@ json: json.cpp json.h
 rust:
 	rustc -O rust.rs && ./rust  < $(JSON)
 
+%.cxx:
+	FOO=$@ ./json < $(JSON)
+
+cxx-proc: $(CPUS)
+	echo all done
 cxx:
 	 ./json < $(JSON)
-
-cxx1: json
-	 $(PIPE) | ./json
-
-cxx2: json
-	 $(PIPE) | ./json
-cxx3: json
-	 $(PIPE)| ./json
-cxx4: json
-	 $(PIPE)| ./json
-
-cxxp: cxx1 cxx2 cxx3 cxx4
 
 java: $(JARS)
 	javac -cp $(JARS_CP)  JSON.java && java -cp $(JARS_CP):. JSON < $(JSON)
