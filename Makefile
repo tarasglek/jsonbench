@@ -3,12 +3,14 @@ space :=
 space +=
 comma :=,
 JARS_CP=$(subst $(space),:,$(JARS))
-JSON=../data-telemetry/export.log
+JSON=./big_jsonbench_sample.txt
 PYTHON_JSON=json
 PYTHON_CMD=python
 JYTHON_JSON=com.xhaus.jyson.JysonCodec
+SPIDERMONKEY=~/obj/js
 LIMIT=cat
 CPUS=$(foreach proc,$(shell grep processor /proc/cpuinfo|$(LIMIT)|sed 's/[: \t]/_/g'),$(proc).cxx)
+GOPATH := $(shell pwd)/gojson
 
 echo:
 	echo $(CPUS)
@@ -25,10 +27,14 @@ python_simplejson:
 	$(MAKE) python PYTHON_JSON=simplejson
 
 spidermonkey:
-	~/obj/js -f spidermonkey.js < $(JSON)
+	$(SPIDERMONKEY) -f spidermonkey.js < $(JSON)
 
 json: json.cpp json.h
 	c++ -Wall -O3 json.cpp -o json
+
+go:
+	export GOPATH=${GOPATH}; go install jsonbench
+	${GOPATH}/bin/jsonbench $(JSON)
 
 rust:
 	rustc -O rust.rs && ./rust  < $(JSON)
