@@ -10,7 +10,7 @@ JYTHON_JSON=com.xhaus.jyson.JysonCodec
 SPIDERMONKEY=~/obj/js
 LIMIT=cat
 CPUS=$(foreach proc,$(shell grep processor /proc/cpuinfo|$(LIMIT)|sed 's/[: \t]/_/g'),$(proc).cxx)
-GOPATH := $(shell pwd)/gojson
+export GOPATH := $(PWD)/gojson
 
 echo:
 	echo $(CPUS)
@@ -29,11 +29,11 @@ python_simplejson:
 spidermonkey:
 	$(SPIDERMONKEY) -f spidermonkey.js < $(JSON)
 
-json: json.cpp json.h
-	c++ -Wall -O3 json.cpp -o json
+json: json.cpp json.h rapidjson
+	c++ -Wall -O3 json.cpp -o json -Irapidjson/include
 
 go:
-	export GOPATH=${GOPATH}; go install jsonbench
+	go install jsonbench
 	${GOPATH}/bin/jsonbench $(JSON)
 
 rust:
@@ -48,7 +48,7 @@ sample-data:
 
 cxx-proc: $(CPUS)
 	echo all done
-cxx:
+cxx: json
 	 ./json < $(JSON)
 
 java: $(JARS)
@@ -62,3 +62,7 @@ jython-standalone-2.7-b1.jar:
 
 jyson-1.0.2.jar:
 	wget -c http://people.mozilla.org/~tglek/jyson-1.0.2.jar
+
+rapidjson:
+	wget -c http://rapidjson.googlecode.com/files/rapidjson-0.11.zip
+	unzip rapidjson-0.11.zip
