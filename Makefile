@@ -33,6 +33,10 @@ json: json.cpp json.h
 rust:
 	rustc -O rust.rs && ./rust  < $(JSON)
 
+sample-data:
+	tar xzvf jsonbench_sample.tar.gz
+	for f in $$(seq 1 1500); do cat jsonbench_sample.txt >> big_jsonbench_sample.txt; done
+
 %.cxx:
 	FOO=$@ ./json < $(JSON)
 
