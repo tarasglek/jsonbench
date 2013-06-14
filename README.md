@@ -18,6 +18,14 @@ lz4 appears to be the fastest compression algo. On my quadcore i5-3330S, I can d
 time make -j cxxp PIPE="lz4demo -d ~/work/data-telemetry/20130305-20130306.json.lz4 stdout"
 ```
 
+Running the [Go](http://golang.org/) version:
+```
+export GOPATH=/path/to/jsonbench/gojson
+export PATH=$PATH:$GOPATH/bin
+cd $GOPATH/src/jsonbench/
+go install jsonbench && jsonbench /path/to/test_data.json
+```
+
 ###Generating Sample Data
 
 1. Enable telemetry in your browser.
