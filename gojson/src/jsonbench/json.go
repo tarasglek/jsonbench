@@ -21,7 +21,8 @@ func main() {
    dec := json.NewDecoder(file)
    startTime := time.Now()
    for {
-      var m map[string]interface{}
+      // Parse the JSON but throw away all the data
+      var m struct{}
       if err := dec.Decode(&m); err == io.EOF {
          break
       } else if err != nil {
