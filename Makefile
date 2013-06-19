@@ -1,4 +1,4 @@
-JARS=jackson-core-2.1.4.jar
+JARS=jackson-core-2.1.4.jar jackson-databind-2.1.4.jar jackson-annotations-2.1.4.jar
 space :=
 space +=
 comma :=,
@@ -34,7 +34,7 @@ json: json.cpp json.h rapidjson
 
 go:
 	go install jsonbench
-	${GOPATH}/bin/jsonbench $(JSON)
+	$(GOPATH)/bin/jsonbench $(JSON)
 
 rust:
 	rustc -O rust.rs && ./rust  < $(JSON)
@@ -51,11 +51,23 @@ cxx-proc: $(CPUS)
 cxx: json
 	 ./json < $(JSON)
 
-java: $(JARS)
-	javac -cp $(JARS_CP)  JSON.java && java -cp $(JARS_CP):. JSON < $(JSON)
+javac: $(JARS)
+	javac -cp $(JARS_CP) JSON.java
+
+java: javac
+	java -cp $(JARS_CP):. JSON < $(JSON)
+
+java_tokenize: javac
+	java -cp $(JARS_CP):. JSON tokenize < $(JSON)
 
 jackson-core-2.1.4.jar:
 	wget -c http://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.1.4/jackson-core-2.1.4.jar
+
+jackson-databind-2.1.4.jar:
+	wget -c http://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.1.4/jackson-databind-2.1.4.jar
+
+jackson-annotations-2.1.4.jar:
+	wget -c http://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.1.4/jackson-annotations-2.1.4.jar
 
 jython-standalone-2.7-b1.jar:
 	wget -c http://repo1.maven.org/maven2/org/python/jython-standalone/2.7-b1/jython-standalone-2.7-b1.jar
