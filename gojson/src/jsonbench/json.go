@@ -34,5 +34,5 @@ func main() {
       log.Fatal(err)
    }
    speed := float32(fileInfo.Size()) / 1024.0 / 1024.0 / float32(duration.Seconds())
-   fmt.Printf("Duration: %s, %.02f MB/s", duration, speed)
+   fmt.Printf("%.02f MB/s in %s", speed, duration)
 }
