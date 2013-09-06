@@ -26,6 +26,9 @@ python:
 python_simplejson:
 	$(MAKE) python PYTHON_JSON=simplejson
 
+python_rapidjson:
+	$(MAKE) python PYTHON_JSON=rapidjson
+
 spidermonkey:
 	$(SPIDERMONKEY) -f spidermonkey.js < $(JSON)
 
