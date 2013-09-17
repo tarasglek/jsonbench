@@ -1,7 +1,9 @@
 #!/usr/bin/python
 import sys
 import importlib
-json = importlib.import_module(sys.argv[1])
+# : because . is used for module names in python
+[JSON_MODULE, JSON_DECODE_FUNC] = sys.argv[1].split(":")
+json = importlib.import_module(JSON_MODULE)
 
 try:
     from java.util import Date
@@ -16,13 +18,22 @@ f = sys.stdin
 
 bytes_read = 0
 
+loads = getattr(json, JSON_DECODE_FUNC)
+
+dumps = None
+
+if len(sys.argv) > 2:
+    dumps = getattr(json, sys.argv[2])
+
 while True:
     oline = f.readline()
     l = len(oline)
     if l == 0:
         break
     bytes_read += l
-    json.loads(oline)
+    obj = loads(oline)
+    if dumps != None:
+        dumps(obj)
 
 if jython:
     ms = (Date().getTime() - start.getTime())

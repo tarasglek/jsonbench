@@ -4,9 +4,10 @@ space +=
 comma :=,
 JARS_CP=$(subst $(space),:,$(JARS))
 JSON=./big_jsonbench_sample.txt
-PYTHON_JSON=json
+PYTHON_JSON=json:loads
+PYTHON_DUMPS=
 PYTHON_CMD=python
-JYTHON_JSON=com.xhaus.jyson.JysonCodec
+JYTHON_JSON=com.xhaus.jyson.JysonCodec:loads
 SPIDERMONKEY=~/obj/js
 LIMIT=cat
 CPUS=$(foreach proc,$(shell grep processor /proc/cpuinfo|$(LIMIT)|sed 's/[: \t]/_/g'),$(proc).cxx)
@@ -21,10 +22,19 @@ jython: jython-standalone-2.7-b1.jar jyson-1.0.2.jar
 	$(MAKE) python PYTHON_CMD="java  -jar $< -Dpython.path=jyson-1.0.2.jar" PYTHON_JSON=$(JYTHON_JSON)
  
 python:
-	$(PYTHON_CMD) loadjson.py $(PYTHON_JSON) < $(JSON)
+	$(PYTHON_CMD) loadjson.py $(PYTHON_JSON) $(PYTHON_DUMPS) < $(JSON)
+
+python_rw:
+	$(MAKE) python PYTHON_DUMPS=dumps
 
 python_simplejson:
-	$(MAKE) python PYTHON_JSON=simplejson
+	$(MAKE) python PYTHON_JSON=simplejson:loads
+
+python_simplejson_rw:
+	$(MAKE) python PYTHON_JSON=simplejson:loads PYTHON_DUMPS=dumps
+
+python_cjson_rw:
+	$(MAKE) python PYTHON_JSON=cjson:decode PYTHON_DUMPS=encode
 
 spidermonkey:
 	$(SPIDERMONKEY) -f spidermonkey.js < $(JSON)
