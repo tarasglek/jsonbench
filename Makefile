@@ -16,7 +16,7 @@ export GOPATH := $(PWD)/gojson
 echo:
 	echo $(CPUS)
 node:
-	nodejs node.js $(JSON) 
+	node node.js $(JSON)
 
 jython: jython-standalone-2.7-b1.jar jyson-1.0.2.jar
 	$(MAKE) python PYTHON_CMD="java  -jar $< -Dpython.path=jyson-1.0.2.jar" PYTHON_JSON=$(JYTHON_JSON)
@@ -35,6 +35,12 @@ python_simplejson_rw:
 
 python_cjson_rw:
 	$(MAKE) python PYTHON_JSON=cjson:decode PYTHON_DUMPS=encode
+
+python_rapidjson:
+	$(MAKE) python PYTHON_JSON=rapidjson
+
+python_ujson:
+	$(MAKE) python PYTHON_JSON=ujson
 
 spidermonkey:
 	$(SPIDERMONKEY) -f spidermonkey.js < $(JSON)
