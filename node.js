@@ -22,7 +22,6 @@ function readLines(input, onLine, onEnd) {
 }
 
 
-var start = new Date();
 var bytes = 0;
 
 function processLine(data) {
@@ -32,6 +31,7 @@ function processLine(data) {
 
 var input = fs.createReadStream(process.argv[2]);
 
+var start = new Date();
 
 readLines(input, processLine, function() {
   var mseconds = (new Date() - start)
